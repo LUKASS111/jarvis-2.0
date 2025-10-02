@@ -1,55 +1,96 @@
-import sqlite3 from 'sqlite3';
+import * as Automerge from '@automerge/automerge';
 import { KnowledgeUnit } from '@jarvis-2.0/shared-schema';
-import path from 'path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-const DB_FILE = path.resolve(__dirname, '../jarvis.db');
+// This defines the structure of our entire database document.
+// It's an Automerge document that contains a map of KnowledgeUnits.
+interface JarvisDoc {
+  knowledgeUnits: Automerge.Map<KnowledgeUnit>;
+  // This is where our custom index will live.
+  // We will build this out later.
+  // Example: indexes: { byType: { 'document': ['id1', 'id2'] } }
+  indexes: Automerge.Map<{ [key: string]: any }>;
+}
+
+const DOC_FILE = path.resolve(__dirname, '../jarvis.automerge.doc');
 
 export class Storage {
-  private db: sqlite3.Database;
+  private doc: Automerge.Doc<JarvisDoc>;
 
   constructor() {
-    this.db = new sqlite3.Database(DB_FILE, (err) => {
-      if (err) {
-        console.error('Error opening database', err.message);
+    // Initialize with an empty document structure.
+    this.doc = Automerge.init<JarvisDoc>();
+    console.log('In-memory Automerge document initialized.');
+  }
+
+  /**
+   * Initializes the storage by loading the Automerge document from disk if it exists.
+   */
+  public async initialize(): Promise<void> {
+    try {
+      const fileData = await fs.readFile(DOC_FILE);
+      // Load the document from the binary data.
+      this.doc = Automerge.load<JarvisDoc>(fileData);
+      console.log(`Automerge document loaded from ${DOC_FILE}.`);
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        // File doesn't exist, which is fine on first run.
+        // We will create it on the first save.
+        console.log('No existing document found. A new one will be created on first save.');
+        // We need to initialize the maps within the new document.
+        this.doc = Automerge.change(this.doc, (d) => {
+            d.knowledgeUnits = new Automerge.Map<KnowledgeUnit>();
+            d.indexes = new Automerge.Map<{ [key: string]: any }>();
+        });
       } else {
-        console.log('Connected to the SQLite database.');
+        console.error('Error loading Automerge document', error);
+        throw error; // Propagate the error
       }
-    });
+    }
   }
 
   /**
-   * Initializes the database by creating necessary tables if they don't exist.
-   * @returns A promise that resolves when initialization is complete.
+   * Saves the entire Automerge document to a binary file on disk.
    */
-  public initialize(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const createTableSql = `
-        CREATE TABLE IF NOT EXISTS knowledge_units (
-          id TEXT PRIMARY KEY,
-          type TEXT NOT NULL,
-          unit_data TEXT NOT NULL
-        );
-      `;
-      this.db.run(createTableSql, (err) => {
-        if (err) {
-          console.error('Error creating table', err.message);
-          return reject(err);
-        }
-        console.log('Table "knowledge_units" is ready.');
-        resolve();
-      });
-    });
+  private async save(): Promise<void> {
+    const fileData = Automerge.save(this.doc);
+    await fs.writeFile(DOC_FILE, fileData);
+    console.log(`Document saved to ${DOC_FILE}.`);
   }
 
   /**
-   * Creates a new Knowledge Unit in the database.
-   * @param unit The KnowledgeUnit object to create.
-   * @returns A promise that resolves with the ID of the created unit.
+   * Creates or updates a Knowledge Unit.
+   * This is the core "write" operation.
+   * @param unit The KnowledgeUnit object to create/update.
+   * @returns A promise that resolves when the operation is complete.
    */
-  public createKnowledgeUnit(unit: KnowledgeUnit): Promise<string> {
-    // We will implement this in the next step.
-    return Promise.resolve(unit.id);
+  public async saveKnowledgeUnit(unit: KnowledgeUnit): Promise<void> {
+    const newDoc = Automerge.change(this.doc, (d) => {
+      // Add or overwrite the knowledge unit in the map.
+      d.knowledgeUnits.set(unit.id, unit);
+
+      // --- Our Future Indexing Logic Will Go Here ---
+      // For example:
+      // const type = unit.analysis.core.baseType;
+      // if (!d.indexes.byType) d.indexes.byType = {};
+      // if (!d.indexes.byType[type]) d.indexes.byType[type] = [];
+      // if (!d.indexes.byType[type].includes(unit.id)) {
+      //   d.indexes.byType[type].push(unit.id);
+      // }
+      // ------------------------------------------------
+    });
+
+    this.doc = newDoc;
+    await this.save(); // Persist changes to disk
   }
 
-  // We will add more methods here later (get, update, delete, query)...
+  /**
+   * Retrieves a Knowledge Unit by its ID.
+   * @param id The UUID of the unit.
+   * @returns The KnowledgeUnit object or undefined if not found.
+   */
+  public getKnowledgeUnit(id: string): KnowledgeUnit | undefined {
+    return this.doc.knowledgeUnits.get(id);
+  }
 }
