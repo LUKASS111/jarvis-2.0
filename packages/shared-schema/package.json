@@ -1,0 +1,16 @@
+{
+  "name": "@jarvis-2.0/shared-schema",
+  "version": "1.0.0",
+  "description": "Contains the TypeScript definitions for the core data structures of Jarvis 2.0, like the Knowledge Unit.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "LUKASS111",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
