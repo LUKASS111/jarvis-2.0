@@ -1,5 +1,5 @@
-# Jarvis 2.0
+# Jarvis 2.0 Engineering Baseline
 
-Jarvis 2.0: An intelligent, modular personal assistant. Second generation of the Jarvis project.
-
-This project is being developed in collaboration with GitHub Copilot.
+1. [MASTER_PLAN_v24.0](docs/MASTER_PLAN_v24.0.md)
+2. [IMPLEMENTATION_GUIDE_v14.0](docs/IMPLEMENTATION_GUIDE_v14.0.md)
+3. [VALIDATION_MATRIX_v2.0](docs/VALIDATION_MATRIX_v2.0.md)
