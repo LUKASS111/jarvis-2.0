@@ -1,3 +1,5 @@
+Plan to write new system that makes all todays AI problems with correct answers to go away :) 
+
 # Jarvis 2.0 Engineering Baseline
 
 1. [MASTER_PLAN_v24.0](docs/MASTER_PLAN_v24.0.md)
